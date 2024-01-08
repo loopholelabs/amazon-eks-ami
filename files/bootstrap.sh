@@ -38,6 +38,10 @@ function print_help {
   echo "--pause-container-version The tag of the pause container"
   echo "--service-ipv6-cidr ipv6 cidr range of the cluster"
   echo "--use-max-pods Sets --max-pods for the kubelet when true. (default: true)"
+
+  # Architect-specific Variables
+  echo "--architect-control-plane-address The Architect Control Plane's Address"
+
 }
 
 function log {
@@ -160,6 +164,12 @@ while [[ $# -gt 0 ]]; do
     --local-disks)
       LOCAL_DISKS=$2
       log "INFO: --local-disks='${LOCAL_DISKS}'"
+      shift
+      shift
+      ;;
+    --architect-control-plane-address)
+      ARCHITECT_CONTROL_PLANE_ADDRESS=$2
+      log "INFO: --architect-control-plane-address='${ARCHITECT_CONTROL_PLANE_ADDRESS}'"
       shift
       shift
       ;;
@@ -531,6 +541,7 @@ KUBELET_ARGS="--node-ip=$INTERNAL_IP --pod-infra-container-image=$PAUSE_CONTAINE
 if vercmp "$KUBELET_VERSION" lt "1.26.0"; then
   # TODO: remove this when 1.25 is EOL
   KUBELET_CLOUD_PROVIDER="aws"
+  NODE_NAME=$(cat /etc/hostname)
 else
   KUBELET_CLOUD_PROVIDER="external"
   echo "$(jq ".providerID=\"$(provider-id)\"" $KUBELET_CONFIG)" > $KUBELET_CONFIG
@@ -539,6 +550,7 @@ else
   # then /etc/hostname is not the same as EC2's PrivateDnsName.
   # The name of the Node object must be equal to EC2's PrivateDnsName for the aws-iam-authenticator to allow this kubelet to manage it.
   KUBELET_ARGS="$KUBELET_ARGS --hostname-override=$(private-dns-name)"
+  NODE_NAME=$(private-dns-name)
 fi
 
 KUBELET_ARGS="$KUBELET_ARGS --cloud-provider=$KUBELET_CLOUD_PROVIDER"
@@ -628,9 +640,37 @@ Environment='KUBELET_EXTRA_ARGS=$KUBELET_EXTRA_ARGS'
 EOF
 fi
 
+HOST_INTERFACE_ID=$(imds "latest/meta-data/network/interfaces/macs/$MAC/device-number")
+HOST_INTERFACE=$(ip -br l | awk '$1 !~ "lo|vir|wl" { print $1}' | awk "NR==$HOST_INTERFACE_ID+1")
+
+mkdir -p /etc/systemd/system/architect.service.d
+
+cat << EOF > /etc/systemd/system/architect.service.d/10-node-name.conf
+[Service]
+Environment='NODE_NAME=$NODE_NAME'
+EOF
+
+cat << EOF > /etc/systemd/system/architect.service.d/20-node-ip.conf
+[Service]
+Environment='NODE_IP=$INTERNAL_IP'
+EOF
+
+cat << EOF > /etc/systemd/system/architect.service.d/30-host-interface.conf
+[Service]
+Environment='HOST_INTERFACE=$HOST_INTERFACE'
+EOF
+
+cat << EOF > /etc/systemd/system/architect.service.d/40-control-plane-address.conf
+[Service]
+Environment='CONTROL_PLANE_ADDR=$ARCHITECT_CONTROL_PLANE_ADDRESS'
+EOF
+
 systemctl daemon-reload
 systemctl enable kubelet
 systemctl start kubelet
+
+systemctl enable architect
+systemctl start architect
 
 # gpu boost clock
 if command -v nvidia-smi &> /dev/null; then

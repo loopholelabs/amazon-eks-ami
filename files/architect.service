@@ -1,0 +1,22 @@
+[Unit]
+Description=Architect
+Documentation=https://github.com/loopholelabs/architect
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/architect-worker \
+    --verbose \
+    --name $NODE_NAME \
+    --host-interface $HOST_INTERFACE \
+    --ahost $NODE_IP \
+    --control-plane-raddr $CONTROL_PLANE_ADDR \
+    --firecracker-bin /usr/local/bin/firecracker \
+    --jailer-bin /usr/local/bin/jailer
+
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

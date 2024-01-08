@@ -42,7 +42,8 @@
     "subnet_id": null,
     "temporary_security_group_source_cidrs": null,
     "volume_type": null,
-    "working_dir": null
+    "working_dir": null,
+    "github_access_token": null
   },
   "builders": [
     {
@@ -197,6 +198,28 @@
         "CACHE_CONTAINER_IMAGES={{user `cache_container_images`}}",
         "WORKING_DIR={{user `working_dir`}}",
         "SSM_AGENT_VERSION={{user `ssm_agent_version`}}"
+      ]
+    },
+    {
+      "type": "shell",
+      "remote_folder": "{{ user `remote_folder`}}",
+      "script": "{{template_dir}}/scripts/install-docker.sh",
+      "environment_vars": []
+    },
+    {
+      "type": "shell",
+      "remote_folder": "{{ user `remote_folder`}}",
+      "inline": ["sudo reboot"],
+      "expect_disconnect": true,
+      "pause_after": "90s"
+    },
+    {
+      "type": "shell",
+      "remote_folder": "{{ user `remote_folder`}}",
+      "script": "{{template_dir}}/scripts/install-architect.sh",
+      "environment_vars": [
+        "WORKING_DIR={{user `working_dir`}}",
+        "GITHUB_ACCESS_TOKEN={{user `github_access_token`}}"
       ]
     },
     {
