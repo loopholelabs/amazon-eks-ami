@@ -12,7 +12,8 @@ ExecStart=/usr/local/bin/architect-worker \
     --ahost $NODE_IP \
     --control-plane-raddr $CONTROL_PLANE_ADDR \
     --firecracker-bin /usr/local/bin/firecracker \
-    --jailer-bin /usr/local/bin/jailer
+    --jailer-bin /usr/local/bin/jailer \
+    --cgroup-version 1
 
 Restart=always
 RestartSec=5

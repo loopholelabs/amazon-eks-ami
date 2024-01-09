@@ -41,7 +41,7 @@ endif
 ifeq ($(enable_fips), true)
 	AMI_VARIANT := $(AMI_VARIANT)-fips
 endif
-ami_name ?= $(AMI_VARIANT)-node-$(K8S_VERSION_MINOR)-$(AMI_VERSION)
+ami_name ?= $(AMI_VARIANT)-node-$(K8S_VERSION_MINOR)-$(AMI_VERSION)-architect
 
 ifeq ($(aws_region), cn-northwest-1)
 	source_ami_owners ?= 141808717104
